@@ -1,0 +1,1 @@
+docker build -t testcontainers/ryuk-windows -f Dockerfile --build-arg BUILDBASE=golang:1.19-nanoserver --build-arg BUILDPLATFORM=windows/amd64 --build-arg TARGETOS=windows --build-arg WINBASE=mcr.microsoft.com/windows/nanoserver:ltsc2022 --target windows .

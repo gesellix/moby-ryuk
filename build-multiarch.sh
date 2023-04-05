@@ -3,6 +3,7 @@ IS_RELEASE=${2:-no}
 LINUXBASE="alpine:3.16.1"
 WINBASE="mcr.microsoft.com/windows/nanoserver"
 OSVERSIONS=("ltsc2019" "ltsc2022")
+#OSVERSIONS=("1809" "1903" "1909" "ltsc2019" "2004" "20H2" "ltsc2022")
 MANIFESTLIST=""
 BUILDX_PUSH=""
 
@@ -54,6 +55,7 @@ do
   # if you push the Docker images the manifest is not locally
   docker pull ${WINBASE}:${VERSION}
   full_version=$(docker manifest inspect ${WINBASE}:${VERSION} |jq -r '.manifests[]|.platform|."os.version"'| sed 's@.*:@@') || true;
+  echo "annotating windows image with ${full_version}"
   docker manifest annotate \
     --os-version ${full_version} \
     --os windows \
