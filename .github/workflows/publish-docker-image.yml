@@ -5,17 +5,15 @@ on:
     types: [ published ]
 
 env:
-  IMAGE_REPOSITORY: testcontainers/ryuk
+  IMAGE_REPOSITORY: ghcr.io/gesellix/moby-ryuk
+#  IMAGE_REPOSITORY: testcontainers/ryuk
 
 jobs:
   release-linux:
     runs-on: ubuntu-latest
     steps:
-      - name: Check out code into the Go module directory
-        uses: actions/checkout@v4
-
-      - name: Set up Go
-        uses: actions/setup-go@v5
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
         with:
           go-version-file: 'go.mod'
       - run: go version
@@ -23,8 +21,15 @@ jobs:
       - name: Login to Docker Hub
         uses: docker/login-action@v2
         with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          username: ${{ vars.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Login to GHCR
+        uses: docker/login-action@v2
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: go-mod verify
         run: go mod verify
@@ -42,7 +47,6 @@ jobs:
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
-
       - name: Set up Docker Buildx
         id: buildx
         uses: docker/setup-buildx-action@v2
@@ -58,9 +62,9 @@ jobs:
           context: .
           file: linux/Dockerfile
           platforms: linux/amd64,linux/arm/v7,linux/arm64,linux/ppc64le,linux/s390x,linux/386,linux/arm/v6
-          # Only push if we are publishing a release
           push: true
-          tags: ${{ env.IMAGE_REPOSITORY }}:${{ github.event.release.tag_name }}-linux
+          tags: ${{ env.IMAGE_REPOSITORY }}:${{ inputs.tag_name }}-linux
+#          tags: ${{ env.IMAGE_REPOSITORY }}:${{ github.event.release.tag_name }}-linux
 
   release-windows:
     strategy:
@@ -70,11 +74,8 @@ jobs:
           - ltsc2022
     runs-on: windows-2022
     steps:
-      - name: Check out code into the Go module directory
-        uses: actions/checkout@v4
-
-      - name: Set up Go
-        uses: actions/setup-go@v3
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v3
         with:
           go-version-file: 'go.mod'
       - run: go version
@@ -82,8 +83,15 @@ jobs:
       - name: Login to Docker Hub
         uses: docker/login-action@v2
         with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          username: ${{ vars.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Login to GHCR
+        uses: docker/login-action@v2
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: go-mod verify
         run: go mod verify
@@ -96,6 +104,8 @@ jobs:
           GOOS: windows
         run: go build
 
+      # TODO enable tests on Windows
+      # Currently doesn't succeed, see https://github.com/testcontainers/testcontainers-go/issues/948
       #- name: go-test
       #  run: go test -v ./...
 
@@ -107,7 +117,6 @@ jobs:
           docker build -f windows/Dockerfile --build-arg BASE_IMAGE=mcr.microsoft.com/windows/nanoserver:${{ matrix.os-version }} -t ${{ env.IMAGE_REPOSITORY }}:${{ github.event.release.tag_name }}-windows.amd64.${{ matrix.os-version }} .
 
       - name: Push image
-        # Only push if we are publishing a release
         run: |
           docker push ${{ env.IMAGE_REPOSITORY }}:${{ github.event.release.tag_name }}-windows.amd64.${{ matrix.os-version }}
 
@@ -120,8 +129,15 @@ jobs:
       - name: Login to Docker Hub
         uses: docker/login-action@v2
         with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          username: ${{ vars.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Login to GHCR
+        uses: docker/login-action@v2
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v2
