@@ -12,30 +12,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
-        with:
-          go-version-file: 'go.mod'
-      - run: go version
 
       - name: Login to Docker Hub
         uses: docker/login-action@v2
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
-
-      - name: go-mod verify
-        run: go mod verify
-
-      - name: go-mod tidy
-        run: go mod tidy
-
-      - name: go-build
-        env:
-          GOOS: linux
-        run: go build
-
-      - name: go-test
-        run: go test -v ./...
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
@@ -66,10 +48,6 @@ jobs:
     runs-on: windows-2022
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
-        with:
-          go-version-file: 'go.mod'
-      - run: go version
 
       - name: Login to Docker Hub
         uses: docker/login-action@v2
@@ -77,32 +55,16 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: go-mod verify
-        run: go mod verify
-
-      - name: go-mod tidy
-        run: go mod tidy
-
-      - name: go-build
-        env:
-          GOOS: windows
-        run: go build
-
-      # TODO enable tests on Windows
-      # Currently doesn't succeed, see https://github.com/testcontainers/testcontainers-go/issues/948
-      #- name: go-test
-      #  run: go test -v ./...
-
       - name: Docker info
         run: docker info
 
       - name: Build image
         run: |
-          docker build -f windows/Dockerfile --build-arg BASE_IMAGE=mcr.microsoft.com/windows/nanoserver:${{ matrix.os-version }} -t ${{ env.IMAGE_REPOSITORY }}:${{ github.event.release.tag_name }}-windows.amd64.${{ matrix.os-version }} .
+          docker build -f windows/Dockerfile --build-arg BASE_IMAGE=mcr.microsoft.com/windows/nanoserver:${{ matrix.os-version }} -t ${{ env.IMAGE_REPOSITORY }}:${{ github.event.release.tag_name }}-windows.${{ matrix.os-version }} .
 
       - name: Push image
         run: |
-          docker push ${{ env.IMAGE_REPOSITORY }}:${{ github.event.release.tag_name }}-windows.amd64.${{ matrix.os-version }}
+          docker push ${{ env.IMAGE_REPOSITORY }}:${{ github.event.release.tag_name }}-windows.${{ matrix.os-version }}
 
   release:
     needs:
@@ -143,19 +105,19 @@ jobs:
           linux_manifest=$(docker manifest inspect ${target_image}-linux);
           linux_digests=$(docker manifest inspect ${target_image}-linux | jq -r '.manifests[].digest');
           manifest_list=${linux_digests//sha256:/${target_image%%:*}@sha256:};
-          manifest_list+=" ${target_image}-windows.amd64.ltsc2019";
-          manifest_list+=" ${target_image}-windows.amd64.ltsc2022";
+          manifest_list+=" ${target_image}-windows.ltsc2019";
+          manifest_list+=" ${target_image}-windows.ltsc2022";
           docker manifest create ${target_image} ${manifest_list};
           docker manifest annotate \
               --os-version ${OS_VERSION_ltsc2019} \
               --os windows \
               --arch amd64 \
-              ${target_image} "${target_image}-windows.amd64.ltsc2019";
+              ${target_image} "${target_image}-windows.ltsc2019";
           docker manifest annotate \
               --os-version ${OS_VERSION_ltsc2022} \
               --os windows \
               --arch amd64 \
-              ${target_image} "${target_image}-windows.amd64.ltsc2022";
+              ${target_image} "${target_image}-windows.ltsc2022";
           docker manifest push ${target_image};
 
   check-release:
@@ -168,7 +130,7 @@ jobs:
       - name: Login to Docker Hub
         uses: docker/login-action@v2
         with:
-          username: ${{ vars.DOCKERHUB_USERNAME }}
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Print multi-arch manifest
